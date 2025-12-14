@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    //Room
+    id("com.google.devtools.ksp") version "2.0.21-1.0.27"
 }
 
 android {
@@ -15,6 +17,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = project.findProperty("GOOGLE_MAPS_API_KEY")?.toString() ?: ""
     }
 
     buildTypes {
@@ -33,6 +37,7 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    viewBinding.enable = true
 }
 
 dependencies {
@@ -45,4 +50,19 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // ROOOM
+    val room_version = "2.7.2"
+
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version") // Coroutine + Flow 지원
+    ksp("androidx.room:room-compiler:$room_version")
+
+    // Google play service 위치 관련 정보 추가
+    implementation ("com.google.android.gms:play-services-location:21.3.0")
+
+    // GoogleMap 관련 정보 추가
+    implementation("com.google.android.gms:play-services-maps:19.2.0")
+
+
 }
