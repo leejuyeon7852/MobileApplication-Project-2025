@@ -47,4 +47,18 @@
         app:uiTiltGestures="true"
         app:uiZoomControls="true"
         app:uiZoomGestures="true" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnMyLocation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="36dp"
+        android:layout_marginBottom="48dp"
+        android:contentDescription="내 위치"
+        android:src="@drawable/location_searching"
+        app:backgroundTint="#5386F6"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@android:color/white" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

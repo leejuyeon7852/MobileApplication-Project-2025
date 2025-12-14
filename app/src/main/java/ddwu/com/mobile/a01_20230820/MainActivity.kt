@@ -1,28 +1,190 @@
 package ddwu.com.mobile.a01_20230820
 
+import android.Manifest.permission.ACCESS_COARSE_LOCATION
+import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
 import android.os.Bundle
+import android.os.Looper
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
-
+    val TAG = "MainActivityTAG"
     lateinit var binding : ActivityMainBinding
+    // 구글맵
+    lateinit var googleMap: GoogleMap
+    // 위치 서비스
+    lateinit var fusedLocationClient: FusedLocationProviderClient
+    lateinit var locationRequest: LocationRequest
+    lateinit var locationCallback: LocationCallback
+
+    // 마커
+    lateinit var centerMarker: Marker
+
+    //geocoder
+    val geocoder: Geocoder by lazy {
+        Geocoder(this, Locale.getDefault())
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         binding = ActivityMainBinding.inflate(layoutInflater)
-
         setContentView(binding.root)
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
+        // 구글 지도 객체 로딩
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+        mapFragment.getMapAsync(mapReadyCallback)
+
+        // 실행 시 위치서비스 관련 권한 확인
+        checkPermissions()
+
+        //위치 서비스 구현
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        locationRequest = LocationRequest.Builder(5000)
+            .setMinUpdateIntervalMillis(3000)
+            .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+            .build()
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                val currentLoc = locationResult.locations[0]
+                val target = LatLng(currentLoc.latitude, currentLoc.longitude)
+
+                googleMap.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(target, 17f)
+                )
+                centerMarker.position = target
+            }
+        }
+
+        // 현재 위치 확인 & 표시
+        binding.btnMyLocation.setOnClickListener {
+            if (checkSelfPermission(ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED) {
+
+                fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+                )
+            } else {
+                checkPermissions()
+            }
+        }
+
     }
+
+    /*Google Map 설정*/
+    val mapReadyCallback = object : OnMapReadyCallback {
+        override fun onMapReady(map: GoogleMap) {
+            googleMap = map
+            Log.d(TAG, "GoogleMap is ready")
+
+            googleMap.setOnCameraMoveStartedListener { reason ->
+                if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
+                    fusedLocationClient.removeLocationUpdates(locationCallback)
+                    Log.d(TAG, "사용자 조작 → 위치 추적 중단")
+                }
+            }
+
+            //*fragment 에 기록한 위치로  centerMarker 추가*//
+            val initLatLng = LatLng(37.606537, 127.041758)
+            centerMarker = addCenterMarker(initLatLng)
+            googleMap.moveCamera(
+                CameraUpdateFactory.newLatLngZoom(initLatLng, 17f)
+            )
+
+            //*최종 위치 확인 후 해당 위치로 지도 및 centerMarker 이동*//
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                if(location!=null){
+                    val last = LatLng(location.latitude, location.longitude)
+
+                    googleMap.moveCamera(
+                        CameraUpdateFactory.newLatLngZoom(last, 17f)
+                    )
+
+                    centerMarker.position = last
+                }
+            }
+            //최종 위치 확인 불가능
+            fusedLocationClient.lastLocation.addOnFailureListener {
+                Log.d(TAG, "최종 위치 없음")
+            }
+
+        }
+    }
+
+    /*centerMarker를 추가하는 함수 구현*/
+    private fun addCenterMarker(latLng: LatLng): Marker {
+        val markerOptions = MarkerOptions().apply {
+            position(latLng)
+            title("현재 위치")
+            snippet("current marker")
+            icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+        }
+
+        val marker = googleMap.addMarker(markerOptions)!!
+        marker.showInfoWindow()
+        return marker
+    }
+
+    /*위치 정보 권한 처리*/
+    private fun checkPermissions() {    // 권한 확인이 필요한 곳에서 호출
+        if (checkSelfPermission(ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            && checkSelfPermission(ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            Log.d(TAG, "필요 권한 있음")
+            // 권한이 이미 있을 경우 필요한 기능 실행
+        } else {
+            // 권한이 없을 경우 권한 요청
+            locationPermissionRequest.launch(
+                arrayOf(ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION)
+            )
+        }
+    }
+
+    val locationPermissionRequest =
+        registerForActivityResult( ActivityResultContracts.RequestMultiplePermissions(), {
+                permissions ->
+            when {
+                permissions.getOrDefault(ACCESS_FINE_LOCATION, false) -> {
+                    Log.d(TAG, "정확한 위치 사용") // 정확한 위치 접근 권한 승인거부 후 해야할 작업
+                }
+                permissions.getOrDefault(ACCESS_COARSE_LOCATION, false) -> {
+                    Log.d(TAG, "근사 위치 사용") // 근사 위치 접근 권한 승인 후 해야할 작업
+                }
+                else -> {
+                    Log.d(TAG, "권한 미승인") // 권한 미승인 시 해야 할 작업
+                }
+            }
+        } )
 }
