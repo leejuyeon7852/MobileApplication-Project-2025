@@ -8,6 +8,7 @@ import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -27,8 +28,13 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import ddwu.com.mobile.a01_20230820.data.KakaoSearchResponse
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
+import ddwu.com.mobile.a01_20230820.network.KakaoRetrofitClient
+import retrofit2.Call
 import java.util.Locale
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
     val TAG = "MainActivityTAG"
@@ -60,6 +66,19 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        // 검색 -> API 호출
+        binding.btnSearch.setOnClickListener {
+            val keyword = binding.etSearchKeyword.text.toString()
+
+            if (keyword.isEmpty()) {
+                Toast.makeText(this, "검색어를 입력하세요", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            searchKakao(keyword)
+        }
+
+
         // 구글 지도 객체 로딩
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(mapReadyCallback)
@@ -84,6 +103,8 @@ class MainActivity : AppCompatActivity() {
                     CameraUpdateFactory.newLatLngZoom(target, 17f)
                 )
                 centerMarker.position = target
+
+                fusedLocationClient.removeLocationUpdates(this)
             }
         }
 
@@ -102,6 +123,37 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    }
+
+    // 카카오 검색
+    private fun searchKakao(keyword: String) {
+        Log.d(TAG, "검색 요청: $keyword")
+
+        KakaoRetrofitClient.service
+            .searchKeyword(keyword, null, null)
+            .enqueue(object : Callback<KakaoSearchResponse> {
+                override fun onResponse(
+                    call: Call<KakaoSearchResponse>,
+                    response: Response<KakaoSearchResponse>
+                ) {
+                    if (response.isSuccessful) {
+                        val places = response.body()?.documents ?: emptyList()
+
+                        Log.d(TAG, "검색 결과 개수: ${places.size}")
+
+                        places.forEach { place ->
+                            Log.d(TAG, "이름=${place.place_name}, 전화=${place.phone}, 좌표=(${place.y}, ${place.x})")
+                        }
+
+                    } else {
+                        Log.e(TAG, "응답 실패 code=${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<KakaoSearchResponse>, t: Throwable) {
+                    Log.e(TAG, "통신 실패", t)
+                }
+            })
     }
 
     /*Google Map 설정*/
@@ -125,20 +177,16 @@ class MainActivity : AppCompatActivity() {
             )
 
             //*최종 위치 확인 후 해당 위치로 지도 및 centerMarker 이동*//
-            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if(location!=null){
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                if (location != null) {
                     val last = LatLng(location.latitude, location.longitude)
-
                     googleMap.moveCamera(
                         CameraUpdateFactory.newLatLngZoom(last, 17f)
                     )
-
                     centerMarker.position = last
+                } else {
+                    Log.d(TAG, "최종 위치 null → 기본 위치 사용")
                 }
-            }
-            //최종 위치 확인 불가능
-            fusedLocationClient.lastLocation.addOnFailureListener {
-                Log.d(TAG, "최종 위치 없음")
             }
 
         }
