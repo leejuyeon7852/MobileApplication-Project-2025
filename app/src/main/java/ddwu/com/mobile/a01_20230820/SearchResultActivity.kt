@@ -28,8 +28,6 @@ class SearchResultActivity : AppCompatActivity() {
             insets
         }
 
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
         adapter = SearchResultAdapter()
 
         searchBinding.rvSearchResult.layoutManager = LinearLayoutManager(this)
