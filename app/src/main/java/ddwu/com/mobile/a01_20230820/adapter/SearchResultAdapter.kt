@@ -38,7 +38,11 @@ class SearchResultAdapter
                 place.address_name
 
         holder.binding.tvPhone.text = place.phone ?: "전화번호 없음"
-        holder.binding.tvDistance.text = ""
+        holder.binding.tvDistance.text = "" // 나중에 추가
+
+        holder.binding.clItem.setOnClickListener {
+            clickListener?.onItemClick(position)
+        }
     }
 
     class SearchResultViewHolder(

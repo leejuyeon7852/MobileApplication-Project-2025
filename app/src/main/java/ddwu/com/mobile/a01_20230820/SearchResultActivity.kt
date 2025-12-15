@@ -3,6 +3,7 @@ package ddwu.com.mobile.a01_20230820
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -48,13 +49,27 @@ class SearchResultActivity : AppCompatActivity() {
             override fun onItemClick(position: Int) {
                 val place = placeList[position]
 
-                val resultIntent = Intent()
-                resultIntent.putExtra("x", place.x)
-                resultIntent.putExtra("y", place.y)
+                val intent = Intent(this@SearchResultActivity, PlaceDetailActivity::class.java)
+                intent.putExtra("place", place)
 
-                setResult(RESULT_OK, resultIntent)
-                finish()
+                detailLauncher.launch(intent)
             }
         }
     }
+
+    private val detailLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val x = result.data?.getStringExtra("x")
+                val y = result.data?.getStringExtra("y")
+
+                if (x != null && y != null) {
+                    // MainActivity로 그대로 넘기고 종료
+                    val intent = Intent()
+                    intent.putExtras(result.data!!)
+                    setResult(RESULT_OK, intent)
+                    finish()
+                }
+            }
+        }
 }

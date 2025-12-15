@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     // 마커
     lateinit var centerMarker: Marker
+    private var searchResultMarker: Marker? = null
 
     //geocoder
     val geocoder: Geocoder by lazy {
@@ -148,7 +149,7 @@ class MainActivity : AppCompatActivity() {
                         // 검색 결과 리스트로 이동
                         val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
                         intent.putExtra("placeList", ArrayList(places))
-                        startActivity(intent)
+                        searchLauncher.launch(intent)
 
                     } else {
                         Log.e(TAG, "응답 실패 code=${response.code()}")
@@ -160,6 +161,42 @@ class MainActivity : AppCompatActivity() {
                 }
             })
     }
+
+    // activity
+    private val searchLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val x = result.data?.getStringExtra("x")
+                val y = result.data?.getStringExtra("y")
+
+                if (x != null && y != null) {
+                    val target = LatLng(y.toDouble(), x.toDouble())
+
+                    val name = result.data?.getStringExtra("name") ?: "선택한 장소"
+                    val address = result.data?.getStringExtra("address") ?: ""
+
+                    // 지도 이동
+                    googleMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(target, 17f)
+                    )
+
+                    // 기존 검색 마커 제거
+                    searchResultMarker?.remove()
+
+                    // 새 마커 추가
+                    searchResultMarker = googleMap.addMarker(
+                        MarkerOptions()
+                            .position(target)
+                            .title(name)
+                            .snippet(address)
+                            .icon(BitmapDescriptorFactory.defaultMarker(
+                                BitmapDescriptorFactory.HUE_BLUE
+                            ))
+                    )
+                    searchResultMarker?.showInfoWindow()
+                }
+            }
+        }
 
     /*Google Map 설정*/
     val mapReadyCallback = object : OnMapReadyCallback {
