@@ -1,5 +1,7 @@
 package ddwu.com.mobile.a01_20230820.data
 
+import java.io.Serializable
+
 data class KakaoSearchResponse(
     val documents: List<KakaoPlace>
 )
@@ -15,5 +17,5 @@ data class KakaoPlace(
     val x: String,
     val y: String,
     val place_url: String
-)
+): Serializable
 

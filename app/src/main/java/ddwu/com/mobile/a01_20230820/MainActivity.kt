@@ -2,9 +2,9 @@ package ddwu.com.mobile.a01_20230820
 
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Geocoder
-import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
@@ -75,9 +75,9 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            searchKakao(keyword)
+            // 음식점만 필터링
+            searchKakao(keyword, "FD6")
         }
-
 
         // 구글 지도 객체 로딩
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
@@ -126,11 +126,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     // 카카오 검색
-    private fun searchKakao(keyword: String) {
+    private fun searchKakao(keyword: String, category: String) {
         Log.d(TAG, "검색 요청: $keyword")
 
         KakaoRetrofitClient.service
-            .searchKeyword(keyword, null, null)
+            .searchKeyword(keyword, null, null, 2000, category)
             .enqueue(object : Callback<KakaoSearchResponse> {
                 override fun onResponse(
                     call: Call<KakaoSearchResponse>,
@@ -141,9 +141,14 @@ class MainActivity : AppCompatActivity() {
 
                         Log.d(TAG, "검색 결과 개수: ${places.size}")
 
-                        places.forEach { place ->
-                            Log.d(TAG, "이름=${place.place_name}, 전화=${place.phone}, 좌표=(${place.y}, ${place.x})")
-                        }
+//                        places.forEach { place ->
+//                            Log.d(TAG, "이름=${place.place_name}, 전화=${place.phone}, 좌표=(${place.y}, ${place.x})")
+//                        }
+
+                        // 검색 결과 리스트로 이동
+                        val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
+                        intent.putExtra("placeList", ArrayList(places))
+                        startActivity(intent)
 
                     } else {
                         Log.e(TAG, "응답 실패 code=${response.code()}")

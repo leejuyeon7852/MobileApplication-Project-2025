@@ -12,7 +12,8 @@ interface KakaoSearchService {
         @Query("query") query: String,
         @Query("x") x: String?,   // 경도
         @Query("y") y: String?,   // 위도
-        @Query("radius") radius: Int = 2000
+        @Query("radius") radius: Int = 2000,
+        @Query("category_group_code") category: String
     ): Call<KakaoSearchResponse>
 }
 

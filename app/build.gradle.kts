@@ -9,6 +9,10 @@ android {
     namespace = "ddwu.com.mobile.a01_20230820"
     compileSdk = 36
 
+    buildFeatures { // 뷰바인딩
+        viewBinding = true
+    }
+
     defaultConfig {
         applicationId = "ddwu.com.mobile.a01_20230820"
         minSdk = 24
@@ -37,7 +41,7 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-    viewBinding.enable = true
+//    viewBinding.enable = true
 }
 
 dependencies {
@@ -47,6 +51,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.recyclerview)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
