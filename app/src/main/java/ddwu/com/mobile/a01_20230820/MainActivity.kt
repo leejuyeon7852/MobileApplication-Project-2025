@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -28,9 +29,13 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.data.KakaoSearchResponse
+import ddwu.com.mobile.a01_20230820.data.PlaceReviewDao
+import ddwu.com.mobile.a01_20230820.data.PlaceReviewDatabase
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
 import ddwu.com.mobile.a01_20230820.network.KakaoRetrofitClient
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import java.util.Locale
 import retrofit2.Callback
@@ -46,15 +51,24 @@ class MainActivity : AppCompatActivity() {
     lateinit var locationRequest: LocationRequest
     lateinit var locationCallback: LocationCallback
 
-    // 마커
-    lateinit var centerMarker: Marker
-    private var searchResultMarker: Marker? = null
-
     //geocoder
     val geocoder: Geocoder by lazy {
         Geocoder(this, Locale.getDefault())
     }
 
+    // 현재 위치 마커
+    private var myLocationMarker: Marker? = null
+
+    // 리뷰 마커들만 관리
+    private val reviewMarkers = mutableListOf<Marker>()
+
+    // 기존 검색 결과 단일 마커
+    private var searchResultMarker: Marker? = null
+
+    // 데이터
+    private lateinit var reviewDao: PlaceReviewDao
+    // 현재 검색 결과 장소들
+    private var searchResults: List<KakaoPlace> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +80,9 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        // 데이터
+        val db = PlaceReviewDatabase.getDatabase(this)
+        reviewDao = db.placeReviewDao()
 
         // 검색 -> API 호출
         binding.btnSearch.setOnClickListener {
@@ -103,7 +120,6 @@ class MainActivity : AppCompatActivity() {
                 googleMap.animateCamera(
                     CameraUpdateFactory.newLatLngZoom(target, 17f)
                 )
-                centerMarker.position = target
 
                 fusedLocationClient.removeLocationUpdates(this)
             }
@@ -113,12 +129,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnMyLocation.setOnClickListener {
             if (checkSelfPermission(ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED) {
-
-                fusedLocationClient.requestLocationUpdates(
-                    locationRequest,
-                    locationCallback,
-                    Looper.getMainLooper()
-                )
+                showMyLocation()
             } else {
                 checkPermissions()
             }
@@ -179,10 +190,8 @@ class MainActivity : AppCompatActivity() {
                     googleMap.animateCamera(
                         CameraUpdateFactory.newLatLngZoom(target, 17f)
                     )
-
                     // 기존 검색 마커 제거
                     searchResultMarker?.remove()
-
                     // 새 마커 추가
                     searchResultMarker = googleMap.addMarker(
                         MarkerOptions()
@@ -211,41 +220,92 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            //*fragment 에 기록한 위치로  centerMarker 추가*//
-            val initLatLng = LatLng(37.606537, 127.041758)
-            centerMarker = addCenterMarker(initLatLng)
-            googleMap.moveCamera(
-                CameraUpdateFactory.newLatLngZoom(initLatLng, 17f)
-            )
+            observeReviewMarkers()
 
-            //*최종 위치 확인 후 해당 위치로 지도 및 centerMarker 이동*//
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (location != null) {
-                    val last = LatLng(location.latitude, location.longitude)
-                    googleMap.moveCamera(
-                        CameraUpdateFactory.newLatLngZoom(last, 17f)
-                    )
-                    centerMarker.position = last
-                } else {
-                    Log.d(TAG, "최종 위치 null → 기본 위치 사용")
-                }
-            }
+            showMyLocation()
 
         }
     }
 
-    /*centerMarker를 추가하는 함수 구현*/
-    private fun addCenterMarker(latLng: LatLng): Marker {
-        val markerOptions = MarkerOptions().apply {
-            position(latLng)
-            title("현재 위치")
-            snippet("current marker")
-            icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+    // 현재 위치 마커로 보여주기
+    private fun showMyLocation() {
+        if (checkSelfPermission(ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return
         }
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                val target = LatLng(location.latitude, location.longitude)
+                // 기존 마커 제거
+                myLocationMarker?.remove()
+                // 새 현재 위치 마커
+                myLocationMarker = googleMap.addMarker(
+                    MarkerOptions()
+                        .position(target)
+                        .title("현재 위치")
+                        .icon(
+                            BitmapDescriptorFactory.defaultMarker(
+                                BitmapDescriptorFactory.HUE_RED
+                            )
+                        )
+                )
+                // 지도 이동
+                googleMap.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(target, 17f)
+                )
+            } else {
+                // lastLocation이 null이면 한 번만 요청
+                fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+                )
+            }
+        }
+    }
 
-        val marker = googleMap.addMarker(markerOptions)!!
-        marker.showInfoWindow()
-        return marker
+    // 리뷰 마커
+    private fun observeReviewMarkers() {
+        lifecycleScope.launch {
+            reviewDao.getAllReviews().collect { reviews ->
+
+                reviewMarkers.forEach { it.remove() }
+                reviewMarkers.clear()
+
+                // 리뷰 있는 좌표들
+                val reviewedLocations = reviews.map {
+                    Pair(it.x, it.y)
+                }.toSet()
+
+                // 검색 결과 기준으로 리뷰 마커만 다시 추가
+                for (place in searchResults) {
+
+                    val hasReview = reviewedLocations.contains(
+                        Pair(place.x, place.y)
+                    )
+                    val markerColor =
+                        if (hasReview)
+                            BitmapDescriptorFactory.HUE_ORANGE   // 리뷰 있음
+                        else
+                            BitmapDescriptorFactory.HUE_BLUE     // 기본
+
+                    val marker = googleMap.addMarker(
+                        MarkerOptions()
+                            .position(
+                                LatLng(
+                                    place.y.toDouble(),
+                                    place.x.toDouble()
+                                )
+                            )
+                            .title(place.place_name)
+                            .icon(
+                                BitmapDescriptorFactory.defaultMarker(markerColor)
+                            )
+                    )
+                    // Flow 관리 대상은 리뷰 마커만
+                    marker?.let { reviewMarkers.add(it) }
+                }
+            }
+        }
     }
 
     /*위치 정보 권한 처리*/

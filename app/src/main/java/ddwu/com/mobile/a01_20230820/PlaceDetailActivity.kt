@@ -21,6 +21,11 @@ import android.app.AlertDialog
 import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.lifecycle.lifecycleScope
+import ddwu.com.mobile.a01_20230820.data.PlaceReview
+import ddwu.com.mobile.a01_20230820.data.PlaceReviewDao
+import ddwu.com.mobile.a01_20230820.data.PlaceReviewDatabase
+import kotlinx.coroutines.launch
 
 
 class PlaceDetailActivity : AppCompatActivity() {
@@ -29,6 +34,9 @@ class PlaceDetailActivity : AppCompatActivity() {
     //사진
     private var currentPhotoPath: String? = null
     private var currentPhotoUri: Uri? = null
+    // 데이터
+    private lateinit var db: PlaceReviewDatabase
+    private lateinit var reviewDao: PlaceReviewDao
     lateinit var place: KakaoPlace
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +50,10 @@ class PlaceDetailActivity : AppCompatActivity() {
         }
 
         place = intent.getSerializableExtra("place") as KakaoPlace
+
+        // 데이터 베이스
+        db = PlaceReviewDatabase.getDatabase(this)
+        reviewDao = db.placeReviewDao()
 
         // 화면에 정보 보여주기
         detailBinding.tvPName.text = place.place_name
@@ -90,6 +102,55 @@ class PlaceDetailActivity : AppCompatActivity() {
                 }
                 setNeutralButton("취소", null)
                 show()
+            }
+        }
+
+        // 저장
+        detailBinding.btnSave.setOnClickListener {
+
+            val reviewText = detailBinding.etReview.text.toString()
+
+            if (reviewText.isBlank()) {
+                Toast.makeText(this, "리뷰를 입력하세요", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val review = PlaceReview(
+                x = place.x,
+                y = place.y,
+                placeName = place.place_name,
+                address = if (place.road_address_name.isNotEmpty())
+                    place.road_address_name
+                else
+                    place.address_name,
+                reviewText = reviewText,
+                imagePath = currentPhotoPath
+            )
+
+            lifecycleScope.launch {
+                reviewDao.upsertReview(review)
+                runOnUiThread {
+                    Toast.makeText(this@PlaceDetailActivity, "리뷰 저장 완료", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            val oldReview = reviewDao.getReviewOnce(place.x, place.y)
+
+            if (oldReview != null) {
+                // 텍스트 미리 채우기
+                detailBinding.etReview.setText(oldReview.reviewText)
+
+                // 사진 있으면 미리 보여주기
+                oldReview.imagePath?.let { path ->
+                    Glide.with(this@PlaceDetailActivity)
+                        .load(File(path))
+                        .into(detailBinding.imageView)
+
+                    // 현재 사진 경로도 갱신 (수정 대비)
+                    currentPhotoPath = path
+                }
             }
         }
 
