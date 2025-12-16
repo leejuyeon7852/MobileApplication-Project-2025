@@ -1,4 +1,4 @@
-package ddwu.com.mobile.a01_20230820.data
+package ddwu.com.mobile.a01_20230820.data.review
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReviewDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
     suspend fun upsertReview(review: Review) // 리뷰 있으면 삭제 후 새걸로 교체, 없으면 그대로 저장
 
     @Query("SELECT * FROM review_table ORDER BY createdAt DESC")

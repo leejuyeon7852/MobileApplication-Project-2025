@@ -1,17 +1,20 @@
-package ddwu.com.mobile.a01_20230820.data
+package ddwu.com.mobile.a01_20230820.data.review
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import ddwu.com.mobile.a01_20230820.data.bookmark.Bookmark
+import ddwu.com.mobile.a01_20230820.data.bookmark.BookmarkDao
 
 @Database(
-    entities = [Review::class],
-    version = 2,
+    entities = [Review::class, Bookmark::class],
+    version = 3,
     exportSchema = false
 )
 abstract class ReviewDatabase : RoomDatabase() {
-    abstract fun placeReviewDao(): ReviewDao
+    abstract fun reviewDao(): ReviewDao
+    abstract fun bookmarkDao(): BookmarkDao
 
     companion object {
         @Volatile
@@ -23,7 +26,9 @@ abstract class ReviewDatabase : RoomDatabase() {
                     context.applicationContext,
                     ReviewDatabase::class.java,
                     "place_review_db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

@@ -1,8 +1,9 @@
-package ddwu.com.mobile.a01_20230820.data
+package ddwu.com.mobile.a01_20230820.data.review
 
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.io.Serializable
 
 @Entity(
     tableName = "review_table",
@@ -27,4 +28,4 @@ data class Review(
     val hasReview: Boolean = true,
 
     val createdAt: Long = System.currentTimeMillis()
-)
+) : Serializable
