@@ -160,6 +160,11 @@ class MainActivity : AppCompatActivity() {
                         // 검색 결과 리스트로 이동
                         val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
                         intent.putExtra("placeList", ArrayList(places))
+
+                        // 내 위치 넘기기
+                        intent.putExtra("myLat", myLocationMarker?.position?.latitude)
+                        intent.putExtra("myLng", myLocationMarker?.position?.longitude)
+
                         searchLauncher.launch(intent)
 
                     } else {
@@ -279,6 +284,10 @@ class MainActivity : AppCompatActivity() {
                 // 검색 결과 기준으로 리뷰 마커만 다시 추가
                 for (place in searchResults) {
 
+                    if (place.x.isNullOrBlank() || place.y.isNullOrBlank()) {
+                        continue   // 좌표 없는 장소는 스킵
+                    }
+
                     val hasReview = reviewedLocations.contains(
                         Pair(place.x, place.y)
                     )
@@ -288,18 +297,14 @@ class MainActivity : AppCompatActivity() {
                         else
                             BitmapDescriptorFactory.HUE_BLUE     // 기본
 
+                    val lat = place.y!!.toDouble()
+                    val lng = place.x!!.toDouble()
+
                     val marker = googleMap.addMarker(
                         MarkerOptions()
-                            .position(
-                                LatLng(
-                                    place.y.toDouble(),
-                                    place.x.toDouble()
-                                )
-                            )
+                            .position(LatLng(lat, lng))
                             .title(place.place_name)
-                            .icon(
-                                BitmapDescriptorFactory.defaultMarker(markerColor)
-                            )
+                            .icon(BitmapDescriptorFactory.defaultMarker(markerColor))
                     )
                     // Flow 관리 대상은 리뷰 마커만
                     marker?.let { reviewMarkers.add(it) }

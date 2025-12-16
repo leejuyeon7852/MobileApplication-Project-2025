@@ -115,9 +115,14 @@ class ReviewDetailActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            if (place.x.isNullOrBlank() || place.y.isNullOrBlank()) {
+                Toast.makeText(this, "위치 정보가 없는 장소입니다", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             val review = Review(
-                x = place.x,
-                y = place.y,
+                x = place.x!!,
+                y = place.y!!,
                 placeName = place.place_name,
                 address = if (place.road_address_name.isNotEmpty())
                     place.road_address_name
@@ -136,7 +141,7 @@ class ReviewDetailActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            val oldReview = reviewDao.getReviewOnce(place.x, place.y)
+            val oldReview = reviewDao.getReviewOnce(place.x!!, place.y!!)
 
             if (oldReview != null) {
                 // 텍스트 미리 채우기

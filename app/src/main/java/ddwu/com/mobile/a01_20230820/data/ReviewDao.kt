@@ -12,11 +12,11 @@ interface ReviewDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertReview(review: Review) // 리뷰 있으면 삭제 후 새걸로 교체, 없으면 그대로 저장
 
-    @Query("SELECT * FROM place_review ORDER BY createdAt DESC")
+    @Query("SELECT * FROM review_table ORDER BY createdAt DESC")
     fun getAllReviews(): Flow<List<Review>>
 
     @Query(
-        "SELECT * FROM place_review " +
+        "SELECT * FROM review_table " +
                 "WHERE x = :x AND y = :y LIMIT 1"
     )
     suspend fun getReviewByLocation(x: String, y: String): Review?
@@ -24,11 +24,11 @@ interface ReviewDao {
     @Delete
     suspend fun deleteReview(review: Review)
 
-    @Query("DELETE FROM place_review")
+    @Query("DELETE FROM review_table")
     suspend fun deleteAllReviews()
 
     @Query(
-        "SELECT * FROM place_review " +
+        "SELECT * FROM review_table " +
                 "WHERE x = :x AND y = :y LIMIT 1"
     )
     suspend fun getReviewOnce(x: String, y: String): Review?
