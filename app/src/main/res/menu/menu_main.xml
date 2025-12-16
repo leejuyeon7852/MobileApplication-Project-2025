@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/menu_bookmark_list"
+        android:icon="@drawable/collections_bookmark_24dp_ffffff_fill0_wght400_grad0_opsz24"
+        android:title="북마크"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menu_review_list"
+        android:icon="@drawable/edit_document_24dp_ffffff_fill0_wght400_grad0_opsz24"
+        android:title="리뷰 목록"
+        app:showAsAction="ifRoom" />
+</menu>

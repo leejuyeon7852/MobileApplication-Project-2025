@@ -8,6 +8,8 @@ import android.location.Geocoder
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,8 +33,8 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.data.KakaoSearchResponse
-import ddwu.com.mobile.a01_20230820.data.ReviewDao
-import ddwu.com.mobile.a01_20230820.data.ReviewDatabase
+import ddwu.com.mobile.a01_20230820.data.review.ReviewDao
+import ddwu.com.mobile.a01_20230820.data.review.ReviewDatabase
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
 import ddwu.com.mobile.a01_20230820.network.KakaoRetrofitClient
 import kotlinx.coroutines.launch
@@ -80,9 +82,12 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        // 툴바
+        setSupportActionBar(binding.toolbar5)
+
         // 데이터
         val db = ReviewDatabase.getDatabase(this)
-        reviewDao = db.placeReviewDao()
+        reviewDao = db.reviewDao()
 
         // 검색 -> API 호출
         binding.btnSearch.setOnClickListener {
@@ -92,7 +97,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "검색어를 입력하세요", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             // 음식점만 필터링
             searchKakao(keyword, "FD6")
         }
@@ -135,6 +139,30 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    }
+
+    // 메뉴
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_review_list -> {
+                startActivity(
+                    Intent(this, ReviewListActivity::class.java)
+                )
+                true
+            }
+            R.id.menu_bookmark_list -> {
+                startActivity(
+                    Intent(this, BookmarkListActivity::class.java)
+                )
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     // 카카오 검색
@@ -228,6 +256,31 @@ class MainActivity : AppCompatActivity() {
             observeReviewMarkers()
 
             showMyLocation()
+
+            // 마커 클릭 시
+            googleMap.setOnMarkerClickListener { marker ->
+
+                val x = marker.position.longitude.toString()
+                val y = marker.position.latitude.toString()
+
+                lifecycleScope.launch {
+                    val review = reviewDao.getReviewOnce(x, y)
+
+                    if (review != null) {
+                        val intent = Intent(this@MainActivity, ReviewDetailActivity::class.java)
+                        intent.putExtra("review", review)
+                        startActivity(intent)
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "이 장소에는 저장된 리뷰가 없습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                true // 기본 InfoWindow 클릭 동작 막기
+            }
 
         }
     }

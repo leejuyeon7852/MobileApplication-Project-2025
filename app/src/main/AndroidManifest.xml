@@ -4,13 +4,12 @@
     <!-- 위치 권한 추가 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- 카메라 -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
-    <!--카메라-->
-    <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature
         android:name="android.hardware.camera"
-        android:required="true"/>
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -21,6 +20,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme._01_20230820">
+        <activity
+            android:name=".BookmarkListActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ReviewListActivity"
+            android:exported="false" />
         <activity
             android:name=".ReviewDetailActivity"
             android:exported="false" />
@@ -47,12 +52,10 @@
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
-
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"/>
+                android:resource="@xml/file_paths" />
         </provider>
-
     </application>
 
 </manifest>

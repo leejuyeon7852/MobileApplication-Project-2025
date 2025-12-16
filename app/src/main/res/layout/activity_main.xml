@@ -21,7 +21,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnReviewList" />
+        app:layout_constraintTop_toBottomOf="@+id/toolbar5" />
 
     <fragment
         android:id="@+id/map"
@@ -38,6 +38,7 @@
         app:cameraZoom="17"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/etSearchKeyword"
         app:mapType="normal"
@@ -66,40 +67,24 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="32dp"
+        android:layout_marginEnd="24dp"
         android:background="#00FFFFFF"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnReviewList"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar5"
         app:srcCompat="?android:attr/actionModeWebSearchDrawable" />
 
-    <Button
-        android:id="@+id/btnReviewList"
-        android:layout_width="wrap_content"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar5"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="64dp"
-        android:backgroundTint="#03A9F4"
-        android:padding="15dp"
-        android:text="리뷰 보기"
-        android:textColor="#F8F0F0"
-        android:textSize="16sp"
-        android:textStyle="bold"
+        android:background="#03A9F4"
+        android:minHeight="?attr/actionBarSize"
+        android:theme="?attr/actionBarTheme"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <Button
-        android:id="@+id/btnBookmark"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="64dp"
-        android:layout_marginTop="8dp"
-        android:backgroundTint="#03A9F4"
-        android:padding="15dp"
-        android:text="북마크 보기"
-        android:textColor="#FAF0F0"
-        android:textSize="16sp"
-        android:textStyle="bold"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:title="메인"
+        app:titleTextColor="#F6F3F3" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

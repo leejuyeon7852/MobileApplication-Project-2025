@@ -21,23 +21,28 @@ import android.app.AlertDialog
 import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import android.view.View
 import androidx.lifecycle.lifecycleScope
-import ddwu.com.mobile.a01_20230820.data.Review
-import ddwu.com.mobile.a01_20230820.data.ReviewDao
-import ddwu.com.mobile.a01_20230820.data.ReviewDatabase
+import ddwu.com.mobile.a01_20230820.data.bookmark.Bookmark
+import ddwu.com.mobile.a01_20230820.data.review.Review
+import ddwu.com.mobile.a01_20230820.data.review.ReviewDao
+import ddwu.com.mobile.a01_20230820.data.review.ReviewDatabase
 import kotlinx.coroutines.launch
 
 
 class ReviewDetailActivity : AppCompatActivity() {
     lateinit var detailBinding: ActivityPlaceDetailBinding
-
     //사진
     private var currentPhotoPath: String? = null
     private var currentPhotoUri: Uri? = null
     // 데이터
     private lateinit var db: ReviewDatabase
     private lateinit var reviewDao: ReviewDao
-    lateinit var place: KakaoPlace
+
+    // 북마크
+    private var isBookmarked = false
+    private var currentBookmark: Bookmark? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -49,39 +54,83 @@ class ReviewDetailActivity : AppCompatActivity() {
             insets
         }
 
-        place = intent.getSerializableExtra("place") as KakaoPlace
+        // 툴바
+        setSupportActionBar(detailBinding.toolbar3)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        // 액티비티
+        var place: KakaoPlace? = null
+        var review: Review? = null
+
+        review = intent.getSerializableExtra("review") as? Review
+        place = intent.getSerializableExtra("place") as? KakaoPlace
 
         // 데이터 베이스
         db = ReviewDatabase.getDatabase(this)
-        reviewDao = db.placeReviewDao()
+        reviewDao = db.reviewDao()
 
         // 화면에 정보 보여주기
-        detailBinding.tvPName.text = place.place_name
+        if (review != null) {
+            // ReviewList → Detail
+            detailBinding.tvPName.text = review!!.placeName
+            detailBinding.tvPAddress.text = review!!.address
+            detailBinding.etReview.setText(review!!.reviewText)
+            detailBinding.tvPhoneNumber.text = "전화번호 정보 없음"
 
-        detailBinding.tvPAddress.text =
-            if (place.road_address_name.isNotEmpty())
-                place.road_address_name
-            else
-                place.address_name
+            // 사진
+            review!!.imagePath?.let { path ->
+                Glide.with(this)
+                    .load(File(path))
+                    .into(detailBinding.imageView)
+                currentPhotoPath = path
+            }
 
-        detailBinding.tvPhoneNumber.text = place.phone ?: "전화번호 정보 없음"
+            detailBinding.btnShowMap.visibility = View.GONE
 
-        // 지도 이동
-        detailBinding.btnShowMap.setOnClickListener {
-            val resultIntent = Intent()
-            resultIntent.putExtra("x", place.x)
-            resultIntent.putExtra("y", place.y)
-            resultIntent.putExtra("name", place.place_name)
-            resultIntent.putExtra(
-                "address",
+        }
+        else if (place != null) {
+            // SearchResult → Detail
+            detailBinding.tvPName.text = place.place_name
+            detailBinding.tvPAddress.text =
                 if (place.road_address_name.isNotEmpty())
                     place.road_address_name
                 else
                     place.address_name
-            )
 
-            setResult(RESULT_OK, resultIntent)
-            finish()
+            detailBinding.tvPhoneNumber.text = place.phone ?: "전화번호 정보 없음"
+
+            // 기존 리뷰 있으면 미리 채우기
+            lifecycleScope.launch {
+                val oldReview = reviewDao.getReviewOnce(place.x!!, place.y!!)
+                if (oldReview != null) {
+                    detailBinding.etReview.setText(oldReview.reviewText)
+                    oldReview.imagePath?.let { path ->
+                        Glide.with(this@ReviewDetailActivity)
+                            .load(File(path))
+                            .into(detailBinding.imageView)
+                        currentPhotoPath = path
+                    }
+                }
+            }
+        }
+
+        // 지도 이동
+        detailBinding.btnShowMap.setOnClickListener {
+            place?.let { p ->
+                val resultIntent = Intent()
+                resultIntent.putExtra("x", p.x)
+                resultIntent.putExtra("y", p.y)
+                resultIntent.putExtra("name", p.place_name)
+                resultIntent.putExtra(
+                    "address",
+                    if (p.road_address_name.isNotEmpty())
+                        p.road_address_name
+                    else
+                        p.address_name
+                )
+                setResult(RESULT_OK, resultIntent)
+                finish()
+            }
         }
 
         // 취소
@@ -107,58 +156,103 @@ class ReviewDetailActivity : AppCompatActivity() {
 
         // 저장
         detailBinding.btnSave.setOnClickListener {
-
-            val reviewText = detailBinding.etReview.text.toString()
-
-            if (reviewText.isBlank()) {
+            val text = detailBinding.etReview.text.toString()
+            if (text.isBlank()) {
                 Toast.makeText(this, "리뷰를 입력하세요", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            if (place.x.isNullOrBlank() || place.y.isNullOrBlank()) {
-                Toast.makeText(this, "위치 정보가 없는 장소입니다", Toast.LENGTH_SHORT).show()
+            val x = place?.x ?: review?.x
+            val y = place?.y ?: review?.y
+
+            if (x == null || y == null) {
+                Toast.makeText(this, "위치 정보 없음", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            val review = Review(
-                x = place.x!!,
-                y = place.y!!,
-                placeName = place.place_name,
-                address = if (place.road_address_name.isNotEmpty())
-                    place.road_address_name
-                else
-                    place.address_name,
-                reviewText = reviewText,
+            val newReview = Review(
+                x = x,
+                y = y,
+                placeName = review?.placeName ?: place!!.place_name,
+                address = review?.address ?: place!!.address_name,
+                reviewText = text,
                 imagePath = currentPhotoPath
             )
 
             lifecycleScope.launch {
-                reviewDao.upsertReview(review)
+                reviewDao.upsertReview(newReview)
                 runOnUiThread {
-                    Toast.makeText(this@ReviewDetailActivity, "리뷰 저장 완료", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@ReviewDetailActivity, "저장 완료", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-        lifecycleScope.launch {
-            val oldReview = reviewDao.getReviewOnce(place.x!!, place.y!!)
 
-            if (oldReview != null) {
-                // 텍스트 미리 채우기
-                detailBinding.etReview.setText(oldReview.reviewText)
+        // 북마크
+        val bookmarkDao = db.bookmarkDao()
 
-                // 사진 있으면 미리 보여주기
-                oldReview.imagePath?.let { path ->
-                    Glide.with(this@ReviewDetailActivity)
-                        .load(File(path))
-                        .into(detailBinding.imageView)
+        val x = place?.x ?: review?.x
+        val y = place?.y ?: review?.y
 
-                    // 현재 사진 경로도 갱신 (수정 대비)
-                    currentPhotoPath = path
+        if (x != null && y != null) {
+            lifecycleScope.launch {
+                val bookmark = bookmarkDao.getBookmark(x, y)
+                if (bookmark != null) {
+                    isBookmarked = true
+                    currentBookmark = bookmark
+                    detailBinding.btnBookmark.setImageResource(R.drawable.bookmark_star_24dp_ffdc01_fill0_wght400_grad0_opsz24)
                 }
             }
         }
 
+        // 북마크 저장
+        detailBinding.btnBookmark.setOnClickListener {
+
+            val bx = place?.x ?: review?.x
+            val by = place?.y ?: review?.y
+            val name = review?.placeName ?: place?.place_name
+            val address = review?.address ?: place?.address_name
+
+            if (bx == null || by == null || name == null || address == null) {
+                Toast.makeText(this, "북마크 정보 부족", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            lifecycleScope.launch {
+                if (!isBookmarked) {
+                    // 저장
+                    val bookmark = Bookmark(
+                        x = bx,
+                        y = by,
+                        placeName = name,
+                        address = address
+                    )
+                    bookmarkDao.insertBookmark(bookmark)
+                    currentBookmark = bookmark
+                    isBookmarked = true
+
+                    runOnUiThread {
+                        detailBinding.btnBookmark.setImageResource(
+                            R.drawable.bookmark_star_24dp_ffdc01_fill0_wght400_grad0_opsz24
+                        )
+                        Toast.makeText(this@ReviewDetailActivity, "북마크 저장", Toast.LENGTH_SHORT).show()
+                    }
+
+                } else {
+                    // 삭제
+                    currentBookmark?.let { bookmarkDao.deleteBookmark(it) }
+                    currentBookmark = null
+                    isBookmarked = false
+
+                    runOnUiThread {
+                        detailBinding.btnBookmark.setImageResource(
+                            R.drawable.baseline_bookmark_border_24_yellow
+                        )
+                        Toast.makeText(this@ReviewDetailActivity, "북마크 해제", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
     }
 
     private fun checkCameraPermissionAndOpen() {
@@ -248,4 +342,10 @@ class ReviewDetailActivity : AppCompatActivity() {
                 Toast.makeText(this, "카메라 권한이 필요합니다", Toast.LENGTH_SHORT).show()
             }
         }
+
+    // 툴바
+    override fun onSupportNavigateUp(): Boolean {
+        finish()   // 이전 화면으로 복귀
+        return true
+    }
 }
