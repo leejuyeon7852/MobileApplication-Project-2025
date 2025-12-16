@@ -246,6 +246,7 @@ class ReviewDetailActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 if (!isBookmarked) {
+                    // 저장
                     val bm = Bookmark(
                         x = model.x,
                         y = model.y,
@@ -253,12 +254,30 @@ class ReviewDetailActivity : AppCompatActivity() {
                         address = model.address
                     )
                     bookmarkDao.insertBookmark(bm)
+
                     isBookmarked = true
                     currentBookmark = bm
+
+                    runOnUiThread {
+                        detailBinding.btnBookmark.setImageResource(
+                            R.drawable.bookmark_star_24dp_ffdc01_fill0_wght400_grad0_opsz24
+                        )
+                        Toast.makeText(this@ReviewDetailActivity, "북마크 저장", Toast.LENGTH_SHORT).show()
+                    }
+
                 } else {
+                    // 삭제
                     currentBookmark?.let { bookmarkDao.deleteBookmark(it) }
+
                     isBookmarked = false
                     currentBookmark = null
+
+                    runOnUiThread {
+                        detailBinding.btnBookmark.setImageResource(
+                            R.drawable.baseline_bookmark_border_24_yellow
+                        )
+                        Toast.makeText(this@ReviewDetailActivity, "북마크 해제", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }

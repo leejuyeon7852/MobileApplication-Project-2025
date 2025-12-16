@@ -34,6 +34,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import ddwu.com.mobile.a01_20230820.data.DetailUiModel
 import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.data.KakaoSearchResponse
+import ddwu.com.mobile.a01_20230820.data.bookmark.Bookmark
 import ddwu.com.mobile.a01_20230820.data.review.ReviewDao
 import ddwu.com.mobile.a01_20230820.data.review.ReviewDatabase
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     // 마커
     private var myLocationMarker: Marker? = null
     private val placeMarkers = mutableListOf<Marker>()
+    private val bookmarkMarkers = mutableListOf<Marker>()
 
     // 데이터
     private lateinit var reviewDao: ReviewDao
@@ -177,6 +179,7 @@ class MainActivity : AppCompatActivity() {
                             val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
                             val bookmarkSet = bookmarks.map { it.x to it.y }.toSet()
                             showPlacesOnMap(searchResults, bookmarkSet)
+                            showBookmarkMarkers(bookmarks)
                         }
 
                         // 검색 결과 리스트로 이동
@@ -261,6 +264,11 @@ class MainActivity : AppCompatActivity() {
 
             showMyLocation()
 
+            lifecycleScope.launch {
+                val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
+                showBookmarkMarkers(bookmarks)
+            }
+
             // 마커 클릭 시
             googleMap.setOnMarkerClickListener { marker ->
 
@@ -320,6 +328,42 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // 북마크한 곳 마커 추가
+    private suspend fun showBookmarkMarkers(bookmarks: List<Bookmark>) {
+        bookmarkMarkers.forEach { it.remove() }
+        bookmarkMarkers.clear()
+
+        for (bm in bookmarks) {
+            // 해당 북마크 위치의 리뷰 조회
+            val review = reviewDao.getReviewOnce(bm.x, bm.y)
+
+            val latLng = LatLng(bm.y.toDouble(), bm.x.toDouble())
+
+            val marker = googleMap.addMarker(
+                MarkerOptions()
+                    .position(latLng)
+                    .title(bm.placeName)
+                    .icon(
+                        BitmapDescriptorFactory.defaultMarker(
+                            BitmapDescriptorFactory.HUE_YELLOW
+                        )
+                    )
+            )
+
+            val uiModel = DetailUiModel(
+                x = bm.x,
+                y = bm.y,
+                placeName = bm.placeName,
+                address = bm.address,
+                reviewText = review?.reviewText,
+                imagePath = review?.imagePath
+            )
+
+            marker?.tag = uiModel
+            marker?.let { bookmarkMarkers.add(it) }
+        }
+    }
+
     private fun showPlacesOnMap(
         places: List<KakaoPlace>,
         bookmarkSet: Set<Pair<String, String>>
@@ -330,6 +374,8 @@ class MainActivity : AppCompatActivity() {
 
         for (place in places) {
             if (place.x.isNullOrBlank() || place.y.isNullOrBlank()) continue
+
+            if (bookmarkSet.contains(place.x to place.y)) continue
 
             val latLng = LatLng(place.y!!.toDouble(), place.x!!.toDouble())
             val isBookmarked = bookmarkSet.contains(place.x to place.y)
