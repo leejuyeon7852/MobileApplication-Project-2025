@@ -22,21 +22,21 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.lifecycle.lifecycleScope
-import ddwu.com.mobile.a01_20230820.data.PlaceReview
-import ddwu.com.mobile.a01_20230820.data.PlaceReviewDao
-import ddwu.com.mobile.a01_20230820.data.PlaceReviewDatabase
+import ddwu.com.mobile.a01_20230820.data.Review
+import ddwu.com.mobile.a01_20230820.data.ReviewDao
+import ddwu.com.mobile.a01_20230820.data.ReviewDatabase
 import kotlinx.coroutines.launch
 
 
-class PlaceDetailActivity : AppCompatActivity() {
+class ReviewDetailActivity : AppCompatActivity() {
     lateinit var detailBinding: ActivityPlaceDetailBinding
 
     //사진
     private var currentPhotoPath: String? = null
     private var currentPhotoUri: Uri? = null
     // 데이터
-    private lateinit var db: PlaceReviewDatabase
-    private lateinit var reviewDao: PlaceReviewDao
+    private lateinit var db: ReviewDatabase
+    private lateinit var reviewDao: ReviewDao
     lateinit var place: KakaoPlace
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +52,7 @@ class PlaceDetailActivity : AppCompatActivity() {
         place = intent.getSerializableExtra("place") as KakaoPlace
 
         // 데이터 베이스
-        db = PlaceReviewDatabase.getDatabase(this)
+        db = ReviewDatabase.getDatabase(this)
         reviewDao = db.placeReviewDao()
 
         // 화면에 정보 보여주기
@@ -115,7 +115,7 @@ class PlaceDetailActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val review = PlaceReview(
+            val review = Review(
                 x = place.x,
                 y = place.y,
                 placeName = place.place_name,
@@ -130,7 +130,7 @@ class PlaceDetailActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 reviewDao.upsertReview(review)
                 runOnUiThread {
-                    Toast.makeText(this@PlaceDetailActivity, "리뷰 저장 완료", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@ReviewDetailActivity, "리뷰 저장 완료", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -144,7 +144,7 @@ class PlaceDetailActivity : AppCompatActivity() {
 
                 // 사진 있으면 미리 보여주기
                 oldReview.imagePath?.let { path ->
-                    Glide.with(this@PlaceDetailActivity)
+                    Glide.with(this@ReviewDetailActivity)
                         .load(File(path))
                         .into(detailBinding.imageView)
 

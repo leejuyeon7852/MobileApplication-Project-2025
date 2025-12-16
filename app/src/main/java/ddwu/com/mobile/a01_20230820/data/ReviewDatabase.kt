@@ -6,22 +6,22 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [PlaceReview::class],
+    entities = [Review::class],
     version = 2,
     exportSchema = false
 )
-abstract class PlaceReviewDatabase : RoomDatabase() {
-    abstract fun placeReviewDao(): PlaceReviewDao
+abstract class ReviewDatabase : RoomDatabase() {
+    abstract fun placeReviewDao(): ReviewDao
 
     companion object {
         @Volatile
-        private var INSTANCE: PlaceReviewDatabase? = null
+        private var INSTANCE: ReviewDatabase? = null
 
-        fun getDatabase(context: Context): PlaceReviewDatabase {
+        fun getDatabase(context: Context): ReviewDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    PlaceReviewDatabase::class.java,
+                    ReviewDatabase::class.java,
                     "place_review_db"
                 ).build()
                 INSTANCE = instance

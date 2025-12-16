@@ -47,7 +47,7 @@ class SearchResultActivity : AppCompatActivity() {
             override fun onItemClick(position: Int) {
                 val place = placeList[position]
 
-                val intent = Intent(this@SearchResultActivity, PlaceDetailActivity::class.java)
+                val intent = Intent(this@SearchResultActivity, ReviewDetailActivity::class.java)
                 intent.putExtra("place", place)
 
                 detailLauncher.launch(intent)

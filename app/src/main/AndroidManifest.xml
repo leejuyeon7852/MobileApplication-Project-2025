@@ -22,7 +22,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme._01_20230820">
         <activity
-            android:name=".PlaceDetailActivity"
+            android:name=".ReviewDetailActivity"
             android:exported="false" />
         <activity
             android:name=".SearchResultActivity"

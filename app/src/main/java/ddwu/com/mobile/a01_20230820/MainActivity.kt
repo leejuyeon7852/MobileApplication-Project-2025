@@ -31,8 +31,8 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.data.KakaoSearchResponse
-import ddwu.com.mobile.a01_20230820.data.PlaceReviewDao
-import ddwu.com.mobile.a01_20230820.data.PlaceReviewDatabase
+import ddwu.com.mobile.a01_20230820.data.ReviewDao
+import ddwu.com.mobile.a01_20230820.data.ReviewDatabase
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
 import ddwu.com.mobile.a01_20230820.network.KakaoRetrofitClient
 import kotlinx.coroutines.launch
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity() {
     private var searchResultMarker: Marker? = null
 
     // 데이터
-    private lateinit var reviewDao: PlaceReviewDao
+    private lateinit var reviewDao: ReviewDao
     // 현재 검색 결과 장소들
     private var searchResults: List<KakaoPlace> = emptyList()
 
@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
         // 데이터
-        val db = PlaceReviewDatabase.getDatabase(this)
+        val db = ReviewDatabase.getDatabase(this)
         reviewDao = db.placeReviewDao()
 
         // 검색 -> API 호출

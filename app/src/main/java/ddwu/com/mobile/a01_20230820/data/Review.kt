@@ -5,12 +5,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "place_review",
+    tableName = "review_table",
     indices = [
         Index(value = ["x", "y"], unique = true)   // 장소 중복 방지 -> 1리뷰 1장소
     ]
 )
-data class PlaceReview(
+data class Review(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
 
