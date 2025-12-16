@@ -17,4 +17,7 @@ interface BookmarkDao {
 
     @Query("SELECT * FROM bookmark_table WHERE x = :x AND y = :y LIMIT 1")
     suspend fun getBookmark(x: String, y: String): Bookmark?
+
+    @Query("SELECT * FROM bookmark_table")
+    suspend fun getAllBookmarksOnce(): List<Bookmark>
 }
