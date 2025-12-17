@@ -19,9 +19,9 @@
         android:inputType="text"
         app:layout_constraintBottom_toTopOf="@+id/map"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar5" />
+        app:layout_constraintTop_toBottomOf="@+id/etBaseLocation" />
 
     <fragment
         android:id="@+id/map"
@@ -66,11 +66,11 @@
         android:id="@+id/btnSearch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="24dp"
         android:background="#00FFFFFF"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar5"
+        app:layout_constraintTop_toTopOf="@+id/etSearchKeyword"
         app:srcCompat="?android:attr/actionModeWebSearchDrawable" />
 
     <androidx.appcompat.widget.Toolbar
@@ -86,5 +86,20 @@
         app:layout_constraintTop_toTopOf="parent"
         app:title="메인"
         app:titleTextColor="#F6F3F3" />
+
+    <EditText
+        android:id="@+id/etBaseLocation"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:ems="10"
+        android:hint="위치 지정(지정하지 않을 시 현위치 기준 검색)"
+        android:inputType="text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar5" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

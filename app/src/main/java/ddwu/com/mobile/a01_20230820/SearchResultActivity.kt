@@ -45,16 +45,16 @@ class SearchResultActivity : AppCompatActivity() {
 
         val placeList = intent.getSerializableExtra("placeList") as ArrayList<KakaoPlace>
 
-        val myLat = intent.getDoubleExtra("myLat", 0.0)
-        val myLng = intent.getDoubleExtra("myLng", 0.0)
+        val baseLat = intent.getDoubleExtra("baseLat", 0.0)
+        val baseLng = intent.getDoubleExtra("baseLng", 0.0)
 
-        val hasMyLocation = !(myLat == 0.0 && myLng == 0.0)
+        val hasBaseLocation = !(baseLat == 0.0 && baseLng == 0.0)
 
         placeList.forEach { place ->
-            if (hasMyLocation && !place.x.isNullOrBlank() && !place.y.isNullOrBlank()) {
+            if (hasBaseLocation && !place.x.isNullOrBlank() && !place.y.isNullOrBlank()) {
                 place.calcDistance = calcDistanceMeter(
-                    myLat,
-                    myLng,
+                    baseLat,
+                    baseLng,
                     place.y!!.toDouble(),
                     place.x!!.toDouble()
                 )
@@ -63,13 +63,13 @@ class SearchResultActivity : AppCompatActivity() {
             }
         }
 
-        adapter.setList(placeList)
-
         placeList.sortWith(
             compareBy<KakaoPlace> {
                 if (it.calcDistance < 0) Float.MAX_VALUE else it.calcDistance
             }
         )
+
+        adapter.setList(placeList)
 
         adapter.clickListener = object : SearchResultAdapter.OnItemClickListener {
             override fun onItemClick(position: Int) {
@@ -82,7 +82,6 @@ class SearchResultActivity : AppCompatActivity() {
             }
         }
     }
-
     private val detailLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {

@@ -1,29 +1,21 @@
 package ddwu.com.mobile.a01_20230820
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.databinding.ActivityPlaceDetailBinding
-import ddwu.com.mobile.a01_20230820.file.FileUtil
 import com.bumptech.glide.Glide
 import java.io.File
-import java.io.IOException
 import android.app.AlertDialog
-import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
 import android.view.View
 import androidx.lifecycle.lifecycleScope
 import ddwu.com.mobile.a01_20230820.data.DetailUiModel
+import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.util.ImagePickerHelper
 import ddwu.com.mobile.a01_20230820.data.bookmark.Bookmark
 import ddwu.com.mobile.a01_20230820.data.review.Review
@@ -161,6 +153,9 @@ class ReviewDetailActivity : AppCompatActivity() {
                     .into(detailBinding.imageView)
             }
         }
+        currentUiModel?.imagePath?.let {
+            imagePicker.setExistingImage(it)
+        }
 
         imagePicker.register(
             permission = registerForActivityResult(
@@ -289,7 +284,6 @@ class ReviewDetailActivity : AppCompatActivity() {
 
         model.imagePath?.let {
             Glide.with(this).load(File(it)).into(detailBinding.imageView)
-            imagePicker.setExistingImage(it)
         }
     }
 

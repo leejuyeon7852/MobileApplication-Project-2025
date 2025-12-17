@@ -63,8 +63,6 @@ class MainActivity : AppCompatActivity() {
     // 데이터
     private lateinit var reviewDao: ReviewDao
     private lateinit var db: ReviewDatabase
-    // 현재 검색 결과 장소들
-    private var searchResults: List<KakaoPlace> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,14 +83,23 @@ class MainActivity : AppCompatActivity() {
 
         // 검색 -> API 호출
         binding.btnSearch.setOnClickListener {
+            placeMarkers.forEach { it.remove() }
+            placeMarkers.clear()
+
             val keyword = binding.etSearchKeyword.text.toString()
 
             if (keyword.isEmpty()) {
                 Toast.makeText(this, "검색어를 입력하세요", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            // 음식점만 필터링
-            searchKakao(keyword, "FD6")
+
+            val baseText = binding.etBaseLocation.text.toString().trim()
+
+            if (baseText.isNotEmpty()) {
+                searchFromAddress(baseText, keyword)
+            } else {
+                searchFromCurrentLocation(keyword)
+            }
         }
 
         // 구글 지도 객체 로딩
@@ -159,46 +166,80 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 카카오 검색
-    private fun searchKakao(keyword: String, category: String) {
-        Log.d(TAG, "검색 요청: $keyword")
+    // 주소 기준 위치 검색
+    private fun searchFromAddress(address: String, keyword: String) {
+        val geocoder = Geocoder(this, Locale.KOREA)
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            // API 33 이상
+            geocoder.getFromLocationName(address, 1) { list ->
+                if (list.isEmpty()) {
+                    Toast.makeText(this, "출발 위치를 찾을 수 없음", Toast.LENGTH_SHORT).show()
+                    return@getFromLocationName
+                }
+                val baseLatLng = LatLng(
+                    list[0].latitude,
+                    list[0].longitude
+                )
+                searchKakaoWithBase(keyword, baseLatLng)
+            }
+        } else {
+            // API 32 이하
+            @Suppress("DEPRECATION")
+            val list = geocoder.getFromLocationName(address, 1)
+
+            if (list.isNullOrEmpty()) {
+                Toast.makeText(this, "출발 위치를 찾을 수 없음", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val baseLatLng = LatLng(
+                list[0].latitude,
+                list[0].longitude
+            )
+            searchKakaoWithBase(keyword, baseLatLng)
+        }
+    }
+
+    // 현위치 기준 검색
+    private fun searchFromCurrentLocation(keyword: String) {
+        val marker = myLocationMarker
+        if (marker == null) {
+            Toast.makeText(this, "현재 위치 확인 불가", Toast.LENGTH_SHORT).show()
+            return
+        }
+        searchKakaoWithBase(keyword, marker.position)
+    }
+    // 카카오 검색
+    private fun searchKakaoWithBase(keyword: String, baseLatLng: LatLng) {
         KakaoRetrofitClient.service
-            .searchKeyword(keyword, null, null, 2000, category)
+            .searchKeyword(
+                keyword,
+                baseLatLng.longitude.toString(),
+                baseLatLng.latitude.toString(),
+                2000,
+                "FD6"
+            )
             .enqueue(object : Callback<KakaoSearchResponse> {
                 override fun onResponse(
                     call: Call<KakaoSearchResponse>,
                     response: Response<KakaoSearchResponse>
                 ) {
-                    if (response.isSuccessful) {
-                        val places = response.body()?.documents ?: emptyList()
+                    if (!response.isSuccessful) return
 
-                        searchResults = places
+                    val places = response.body()?.documents ?: emptyList()
 
-                        lifecycleScope.launch {
-                            val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
-                            val bookmarkSet = bookmarks.map { it.x to it.y }.toSet()
-                            showPlacesOnMap(searchResults, bookmarkSet)
-                            showBookmarkMarkers(bookmarks)
-                        }
+                    val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
+                    intent.putExtra("placeList", ArrayList(places))
 
-                        // 검색 결과 리스트로 이동
-                        val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
-                        intent.putExtra("placeList", ArrayList(places))
+                    // 기준 위치 넘기기
+                    intent.putExtra("baseLat", baseLatLng.latitude)
+                    intent.putExtra("baseLng", baseLatLng.longitude)
 
-                        // 내 위치 넘기기
-                        intent.putExtra("myLat", myLocationMarker?.position?.latitude)
-                        intent.putExtra("myLng", myLocationMarker?.position?.longitude)
-
-                        searchLauncher.launch(intent)
-
-                    } else {
-                        Log.e(TAG, "응답 실패 code=${response.code()}")
-                    }
+                    searchLauncher.launch(intent)
                 }
 
                 override fun onFailure(call: Call<KakaoSearchResponse>, t: Throwable) {
-                    Log.e(TAG, "통신 실패", t)
+                    Log.e(TAG, "검색 실패", t)
                 }
             })
     }
@@ -207,6 +248,12 @@ class MainActivity : AppCompatActivity() {
     private val searchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK && result.data != null) {
+
+                lifecycleScope.launch {
+                    val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
+                    showBookmarkMarkers(bookmarks)
+                }
+
                 val x = result.data!!.getStringExtra("x") ?: return@registerForActivityResult
                 val y = result.data!!.getStringExtra("y") ?: return@registerForActivityResult
                 val name = result.data!!.getStringExtra("name") ?: ""
@@ -229,7 +276,6 @@ class MainActivity : AppCompatActivity() {
                     reviewText = null,
                     imagePath = null
                 )
-
 
                 val marker = googleMap.addMarker(
                     MarkerOptions()
@@ -361,50 +407,6 @@ class MainActivity : AppCompatActivity() {
 
             marker?.tag = uiModel
             marker?.let { bookmarkMarkers.add(it) }
-        }
-    }
-
-    private fun showPlacesOnMap(
-        places: List<KakaoPlace>,
-        bookmarkSet: Set<Pair<String, String>>
-    ) {
-        // 기존 장소 마커 제거
-        placeMarkers.forEach { it.remove() }
-        placeMarkers.clear()
-
-        for (place in places) {
-            if (place.x.isNullOrBlank() || place.y.isNullOrBlank()) continue
-
-            if (bookmarkSet.contains(place.x to place.y)) continue
-
-            val latLng = LatLng(place.y!!.toDouble(), place.x!!.toDouble())
-            val isBookmarked = bookmarkSet.contains(place.x to place.y)
-
-            val color =
-                if (isBookmarked)
-                    BitmapDescriptorFactory.HUE_YELLOW   // 북마크
-                else
-                    BitmapDescriptorFactory.HUE_BLUE     // 검색 결과
-
-            val marker = googleMap.addMarker(
-                MarkerOptions()
-                    .position(latLng)
-                    .title(place.place_name)
-                    .icon(BitmapDescriptorFactory.defaultMarker(color))
-            )
-
-            val uiModel = DetailUiModel(
-                x = place.x!!,
-                y = place.y!!,
-                placeName = place.place_name,
-                address = if (place.road_address_name.isNotEmpty())
-                    place.road_address_name else place.address_name,
-                reviewText = null,
-                imagePath = null
-            )
-
-            marker?.tag = uiModel
-            marker?.let { placeMarkers.add(it) }
         }
     }
 
