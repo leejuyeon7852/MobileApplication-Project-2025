@@ -256,12 +256,6 @@ class MainActivity : AppCompatActivity() {
     private val searchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK && result.data != null) {
-
-                lifecycleScope.launch {
-                    val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
-                    showBookmarkMarkers(bookmarks)
-                }
-
                 val x = result.data!!.getStringExtra("x") ?: return@registerForActivityResult
                 val y = result.data!!.getStringExtra("y") ?: return@registerForActivityResult
                 val name = result.data!!.getStringExtra("name") ?: ""
@@ -303,6 +297,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    override fun onResume() {
+        super.onResume()
+
+        if (::googleMap.isInitialized) {
+            lifecycleScope.launch {
+                val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
+                showBookmarkMarkers(bookmarks)
+            }
+        }
+    }
+
     /*Google Map 설정*/
     val mapReadyCallback = object : OnMapReadyCallback {
         override fun onMapReady(map: GoogleMap) {
@@ -319,8 +324,9 @@ class MainActivity : AppCompatActivity() {
             showMyLocation()
 
             lifecycleScope.launch {
-                val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
-                showBookmarkMarkers(bookmarks)
+                showBookmarkMarkers(
+                    db.bookmarkDao().getAllBookmarksOnce()
+                )
             }
 
             // 마커 클릭 시
