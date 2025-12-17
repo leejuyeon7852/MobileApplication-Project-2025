@@ -8,6 +8,8 @@ import android.location.Geocoder
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,10 +31,12 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import ddwu.com.mobile.a01_20230820.data.DetailUiModel
 import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.data.KakaoSearchResponse
-import ddwu.com.mobile.a01_20230820.data.PlaceReviewDao
-import ddwu.com.mobile.a01_20230820.data.PlaceReviewDatabase
+import ddwu.com.mobile.a01_20230820.data.bookmark.Bookmark
+import ddwu.com.mobile.a01_20230820.data.review.ReviewDao
+import ddwu.com.mobile.a01_20230820.data.review.ReviewDatabase
 import ddwu.com.mobile.a01_20230820.databinding.ActivityMainBinding
 import ddwu.com.mobile.a01_20230820.network.KakaoRetrofitClient
 import kotlinx.coroutines.launch
@@ -51,22 +55,14 @@ class MainActivity : AppCompatActivity() {
     lateinit var locationRequest: LocationRequest
     lateinit var locationCallback: LocationCallback
 
-    //geocoder
-    val geocoder: Geocoder by lazy {
-        Geocoder(this, Locale.getDefault())
-    }
-
-    // 현재 위치 마커
+    // 마커
     private var myLocationMarker: Marker? = null
-
-    // 리뷰 마커들만 관리
-    private val reviewMarkers = mutableListOf<Marker>()
-
-    // 기존 검색 결과 단일 마커
-    private var searchResultMarker: Marker? = null
+    private val placeMarkers = mutableListOf<Marker>()
+    private val bookmarkMarkers = mutableListOf<Marker>()
 
     // 데이터
-    private lateinit var reviewDao: PlaceReviewDao
+    private lateinit var reviewDao: ReviewDao
+    private lateinit var db: ReviewDatabase
     // 현재 검색 결과 장소들
     private var searchResults: List<KakaoPlace> = emptyList()
 
@@ -80,9 +76,12 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        // 툴바
+        setSupportActionBar(binding.toolbar5)
+
         // 데이터
-        val db = PlaceReviewDatabase.getDatabase(this)
-        reviewDao = db.placeReviewDao()
+        db = ReviewDatabase.getDatabase(this)
+        reviewDao = db.reviewDao()
 
         // 검색 -> API 호출
         binding.btnSearch.setOnClickListener {
@@ -92,7 +91,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "검색어를 입력하세요", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             // 음식점만 필터링
             searchKakao(keyword, "FD6")
         }
@@ -137,6 +135,30 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    // 메뉴
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_review_list -> {
+                startActivity(
+                    Intent(this, ReviewListActivity::class.java)
+                )
+                true
+            }
+            R.id.menu_bookmark_list -> {
+                startActivity(
+                    Intent(this, BookmarkListActivity::class.java)
+                )
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     // 카카오 검색
     private fun searchKakao(keyword: String, category: String) {
         Log.d(TAG, "검색 요청: $keyword")
@@ -151,15 +173,23 @@ class MainActivity : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val places = response.body()?.documents ?: emptyList()
 
-                        Log.d(TAG, "검색 결과 개수: ${places.size}")
+                        searchResults = places
 
-//                        places.forEach { place ->
-//                            Log.d(TAG, "이름=${place.place_name}, 전화=${place.phone}, 좌표=(${place.y}, ${place.x})")
-//                        }
+                        lifecycleScope.launch {
+                            val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
+                            val bookmarkSet = bookmarks.map { it.x to it.y }.toSet()
+                            showPlacesOnMap(searchResults, bookmarkSet)
+                            showBookmarkMarkers(bookmarks)
+                        }
 
                         // 검색 결과 리스트로 이동
                         val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
                         intent.putExtra("placeList", ArrayList(places))
+
+                        // 내 위치 넘기기
+                        intent.putExtra("myLat", myLocationMarker?.position?.latitude)
+                        intent.putExtra("myLng", myLocationMarker?.position?.longitude)
+
                         searchLauncher.launch(intent)
 
                     } else {
@@ -176,34 +206,46 @@ class MainActivity : AppCompatActivity() {
     // activity
     private val searchLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val x = result.data?.getStringExtra("x")
-                val y = result.data?.getStringExtra("y")
+            if (result.resultCode == RESULT_OK && result.data != null) {
+                val x = result.data!!.getStringExtra("x") ?: return@registerForActivityResult
+                val y = result.data!!.getStringExtra("y") ?: return@registerForActivityResult
+                val name = result.data!!.getStringExtra("name") ?: ""
+                val address = result.data!!.getStringExtra("address") ?: ""
 
-                if (x != null && y != null) {
-                    val target = LatLng(y.toDouble(), x.toDouble())
+                val target = LatLng(y.toDouble(), x.toDouble())
 
-                    val name = result.data?.getStringExtra("name") ?: "선택한 장소"
-                    val address = result.data?.getStringExtra("address") ?: ""
+                placeMarkers.forEach { it.remove() }
+                placeMarkers.clear()
 
-                    // 지도 이동
-                    googleMap.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(target, 17f)
-                    )
-                    // 기존 검색 마커 제거
-                    searchResultMarker?.remove()
-                    // 새 마커 추가
-                    searchResultMarker = googleMap.addMarker(
-                        MarkerOptions()
-                            .position(target)
-                            .title(name)
-                            .snippet(address)
-                            .icon(BitmapDescriptorFactory.defaultMarker(
+                googleMap.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(target, 17f)
+                )
+
+                val uiModel = DetailUiModel(
+                    x = x,
+                    y = y,
+                    placeName = name,
+                    address = address,
+                    reviewText = null,
+                    imagePath = null
+                )
+
+
+                val marker = googleMap.addMarker(
+                    MarkerOptions()
+                        .position(target)
+                        .title(name)
+                        .snippet(address)
+                        .icon(
+                            BitmapDescriptorFactory.defaultMarker(
                                 BitmapDescriptorFactory.HUE_BLUE
-                            ))
-                    )
-                    searchResultMarker?.showInfoWindow()
-                }
+                            )
+                        )
+                )
+
+                marker?.tag = uiModel
+                marker?.showInfoWindow()
+                marker?.let { placeMarkers.add(it) }
             }
         }
 
@@ -220,9 +262,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            observeReviewMarkers()
-
             showMyLocation()
+
+            lifecycleScope.launch {
+                val bookmarks = db.bookmarkDao().getAllBookmarksOnce()
+                showBookmarkMarkers(bookmarks)
+            }
+
+            // 마커 클릭 시
+            googleMap.setOnMarkerClickListener { marker ->
+
+                val uiModel = marker.tag as? DetailUiModel
+                    ?: return@setOnMarkerClickListener true
+
+                lifecycleScope.launch {
+                    val review = reviewDao.getReviewOnce(uiModel.x, uiModel.y)
+
+                    val intent = Intent(this@MainActivity, ReviewDetailActivity::class.java)
+                    if (review != null) {
+                        intent.putExtra("review", review)
+                    } else {
+                        intent.putExtra("uiModel", uiModel)
+                    }
+                    startActivity(intent)
+                }
+                true
+            }
 
         }
     }
@@ -263,48 +328,83 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 리뷰 마커
-    private fun observeReviewMarkers() {
-        lifecycleScope.launch {
-            reviewDao.getAllReviews().collect { reviews ->
+    // 북마크한 곳 마커 추가
+    private suspend fun showBookmarkMarkers(bookmarks: List<Bookmark>) {
+        bookmarkMarkers.forEach { it.remove() }
+        bookmarkMarkers.clear()
 
-                reviewMarkers.forEach { it.remove() }
-                reviewMarkers.clear()
+        for (bm in bookmarks) {
+            // 해당 북마크 위치의 리뷰 조회
+            val review = reviewDao.getReviewOnce(bm.x, bm.y)
 
-                // 리뷰 있는 좌표들
-                val reviewedLocations = reviews.map {
-                    Pair(it.x, it.y)
-                }.toSet()
+            val latLng = LatLng(bm.y.toDouble(), bm.x.toDouble())
 
-                // 검색 결과 기준으로 리뷰 마커만 다시 추가
-                for (place in searchResults) {
-
-                    val hasReview = reviewedLocations.contains(
-                        Pair(place.x, place.y)
+            val marker = googleMap.addMarker(
+                MarkerOptions()
+                    .position(latLng)
+                    .title(bm.placeName)
+                    .icon(
+                        BitmapDescriptorFactory.defaultMarker(
+                            BitmapDescriptorFactory.HUE_YELLOW
+                        )
                     )
-                    val markerColor =
-                        if (hasReview)
-                            BitmapDescriptorFactory.HUE_ORANGE   // 리뷰 있음
-                        else
-                            BitmapDescriptorFactory.HUE_BLUE     // 기본
+            )
 
-                    val marker = googleMap.addMarker(
-                        MarkerOptions()
-                            .position(
-                                LatLng(
-                                    place.y.toDouble(),
-                                    place.x.toDouble()
-                                )
-                            )
-                            .title(place.place_name)
-                            .icon(
-                                BitmapDescriptorFactory.defaultMarker(markerColor)
-                            )
-                    )
-                    // Flow 관리 대상은 리뷰 마커만
-                    marker?.let { reviewMarkers.add(it) }
-                }
-            }
+            val uiModel = DetailUiModel(
+                x = bm.x,
+                y = bm.y,
+                placeName = bm.placeName,
+                address = bm.address,
+                reviewText = review?.reviewText,
+                imagePath = review?.imagePath
+            )
+
+            marker?.tag = uiModel
+            marker?.let { bookmarkMarkers.add(it) }
+        }
+    }
+
+    private fun showPlacesOnMap(
+        places: List<KakaoPlace>,
+        bookmarkSet: Set<Pair<String, String>>
+    ) {
+        // 기존 장소 마커 제거
+        placeMarkers.forEach { it.remove() }
+        placeMarkers.clear()
+
+        for (place in places) {
+            if (place.x.isNullOrBlank() || place.y.isNullOrBlank()) continue
+
+            if (bookmarkSet.contains(place.x to place.y)) continue
+
+            val latLng = LatLng(place.y!!.toDouble(), place.x!!.toDouble())
+            val isBookmarked = bookmarkSet.contains(place.x to place.y)
+
+            val color =
+                if (isBookmarked)
+                    BitmapDescriptorFactory.HUE_YELLOW   // 북마크
+                else
+                    BitmapDescriptorFactory.HUE_BLUE     // 검색 결과
+
+            val marker = googleMap.addMarker(
+                MarkerOptions()
+                    .position(latLng)
+                    .title(place.place_name)
+                    .icon(BitmapDescriptorFactory.defaultMarker(color))
+            )
+
+            val uiModel = DetailUiModel(
+                x = place.x!!,
+                y = place.y!!,
+                placeName = place.place_name,
+                address = if (place.road_address_name.isNotEmpty())
+                    place.road_address_name else place.address_name,
+                reviewText = null,
+                imagePath = null
+            )
+
+            marker?.tag = uiModel
+            marker?.let { placeMarkers.add(it) }
         }
     }
 

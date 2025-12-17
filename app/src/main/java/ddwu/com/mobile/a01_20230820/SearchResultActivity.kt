@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import ddwu.com.mobile.a01_20230820.adapter.SearchResultAdapter
 import ddwu.com.mobile.a01_20230820.data.KakaoPlace
 import ddwu.com.mobile.a01_20230820.databinding.ActivitySearchResultBinding
+import ddwu.com.mobile.a01_20230820.util.calcDistanceMeter
 
 class SearchResultActivity : AppCompatActivity() {
     lateinit var searchBinding : ActivitySearchResultBinding
@@ -27,6 +28,9 @@ class SearchResultActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        // 액션바
+        setSupportActionBar(searchBinding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         adapter = SearchResultAdapter()
 
@@ -41,13 +45,37 @@ class SearchResultActivity : AppCompatActivity() {
 
         val placeList = intent.getSerializableExtra("placeList") as ArrayList<KakaoPlace>
 
+        val myLat = intent.getDoubleExtra("myLat", 0.0)
+        val myLng = intent.getDoubleExtra("myLng", 0.0)
+
+        val hasMyLocation = !(myLat == 0.0 && myLng == 0.0)
+
+        placeList.forEach { place ->
+            if (hasMyLocation && !place.x.isNullOrBlank() && !place.y.isNullOrBlank()) {
+                place.calcDistance = calcDistanceMeter(
+                    myLat,
+                    myLng,
+                    place.y!!.toDouble(),
+                    place.x!!.toDouble()
+                )
+            } else {
+                place.calcDistance = -1f
+            }
+        }
+
         adapter.setList(placeList)
+
+        placeList.sortWith(
+            compareBy<KakaoPlace> {
+                if (it.calcDistance < 0) Float.MAX_VALUE else it.calcDistance
+            }
+        )
 
         adapter.clickListener = object : SearchResultAdapter.OnItemClickListener {
             override fun onItemClick(position: Int) {
                 val place = placeList[position]
 
-                val intent = Intent(this@SearchResultActivity, PlaceDetailActivity::class.java)
+                val intent = Intent(this@SearchResultActivity, ReviewDetailActivity::class.java)
                 intent.putExtra("place", place)
 
                 detailLauncher.launch(intent)
@@ -70,4 +98,9 @@ class SearchResultActivity : AppCompatActivity() {
                 }
             }
         }
+
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
 }

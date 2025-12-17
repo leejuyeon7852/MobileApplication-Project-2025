@@ -38,7 +38,15 @@ class SearchResultAdapter
                 place.address_name
 
         holder.binding.tvPhone.text = place.phone ?: "전화번호 없음"
-        holder.binding.tvDistance.text = "" // 나중에 추가
+
+        val dist = place.calcDistance
+
+        holder.binding.tvDistance.text =
+            when {
+                dist < 0 -> "거리 정보 없음"
+                dist < 1000 -> "${dist.toInt()} m"
+                else -> String.format("%.2f km", dist / 1000)
+            }
 
         holder.binding.clItem.setOnClickListener {
             clickListener?.onItemClick(position)
