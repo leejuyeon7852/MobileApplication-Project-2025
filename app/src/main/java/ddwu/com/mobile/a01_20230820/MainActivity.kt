@@ -147,7 +147,6 @@ class MainActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_review_list -> {
@@ -227,6 +226,15 @@ class MainActivity : AppCompatActivity() {
                     if (!response.isSuccessful) return
 
                     val places = response.body()?.documents ?: emptyList()
+
+                    if (places.isEmpty()) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "검색 결과가 없습니다",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
 
                     val intent = Intent(this@MainActivity, SearchResultActivity::class.java)
                     intent.putExtra("placeList", ArrayList(places))
@@ -317,7 +325,6 @@ class MainActivity : AppCompatActivity() {
 
             // 마커 클릭 시
             googleMap.setOnMarkerClickListener { marker ->
-
                 val uiModel = marker.tag as? DetailUiModel
                     ?: return@setOnMarkerClickListener true
 
