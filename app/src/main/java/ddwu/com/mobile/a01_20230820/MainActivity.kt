@@ -260,6 +260,7 @@ class MainActivity : AppCompatActivity() {
                 val y = result.data!!.getStringExtra("y") ?: return@registerForActivityResult
                 val name = result.data!!.getStringExtra("name") ?: ""
                 val address = result.data!!.getStringExtra("address") ?: ""
+                val phone = result.data!!.getStringExtra("phone")
 
                 val target = LatLng(y.toDouble(), x.toDouble())
 
@@ -275,6 +276,7 @@ class MainActivity : AppCompatActivity() {
                     y = y,
                     placeName = name,
                     address = address,
+                    phone = phone,
                     reviewText = null,
                     imagePath = null
                 )
@@ -337,12 +339,20 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     val review = reviewDao.getReviewOnce(uiModel.x, uiModel.y)
 
+                    val finalUiModel =
+                        if (review != null) {
+                            uiModel.copy(phone = review.phone)
+                        } else {
+                            uiModel
+                        }
+
                     val intent = Intent(this@MainActivity, ReviewDetailActivity::class.java)
+                    intent.putExtra("uiModel", finalUiModel)
+
                     if (review != null) {
                         intent.putExtra("review", review)
-                    } else {
-                        intent.putExtra("uiModel", uiModel)
                     }
+
                     startActivity(intent)
                 }
                 true
@@ -414,6 +424,7 @@ class MainActivity : AppCompatActivity() {
                 y = bm.y,
                 placeName = bm.placeName,
                 address = bm.address,
+                phone = review?.phone,
                 reviewText = review?.reviewText,
                 imagePath = review?.imagePath
             )

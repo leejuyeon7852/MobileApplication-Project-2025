@@ -20,6 +20,7 @@ data class Review(
 
     val placeName: String,
     val address: String,
+    val phone: String?,
 
     val reviewText: String,
 

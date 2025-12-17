@@ -80,6 +80,7 @@ class ReviewDetailActivity : AppCompatActivity() {
                 y = review.y,
                 placeName = review.placeName,
                 address = review.address,
+                phone = review.phone,
                 reviewText = review.reviewText,
                 imagePath = review.imagePath
             )
@@ -90,6 +91,7 @@ class ReviewDetailActivity : AppCompatActivity() {
                 placeName = place.place_name,
                 address = if (place.road_address_name.isNotEmpty())
                     place.road_address_name else place.address_name,
+                phone = place.phone,
                 reviewText = null,
                 imagePath = null
             )
@@ -99,6 +101,7 @@ class ReviewDetailActivity : AppCompatActivity() {
                 y = bookmark.y,
                 placeName = bookmark.placeName,
                 address = bookmark.address,
+                phone = null,
                 reviewText = null,
                 imagePath = null
             )
@@ -112,17 +115,19 @@ class ReviewDetailActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 val reviewFromDb = reviewDao.getReviewOnce(model.x, model.y)
                 if (reviewFromDb != null) {
-                    val merged = DetailUiModel(
-                        x = reviewFromDb.x,
-                        y = reviewFromDb.y,
-                        placeName = reviewFromDb.placeName,
-                        address = reviewFromDb.address,
+                    val merged = currentUiModel!!.copy(
+                        phone = reviewFromDb.phone,
                         reviewText = reviewFromDb.reviewText,
                         imagePath = reviewFromDb.imagePath
                     )
 
                     currentUiModel = merged
-                    runOnUiThread { bindUi(merged) }
+                    runOnUiThread {
+                        bindUi(merged)
+                        reviewFromDb.imagePath?.let {
+                            imagePicker.setExistingImage(it)
+                        }
+                    }
                 }
             }
         }
@@ -135,6 +140,7 @@ class ReviewDetailActivity : AppCompatActivity() {
                 putExtra("y", model.y)
                 putExtra("name", model.placeName)
                 putExtra("address", model.address)
+                putExtra("phone", model.phone)
             }
             setResult(RESULT_OK, intent)
             finish()
@@ -209,6 +215,7 @@ class ReviewDetailActivity : AppCompatActivity() {
                 y = model.y,
                 placeName = model.placeName,
                 address = model.address,
+                phone = model.phone,
                 reviewText = text,
                 imagePath = imagePicker.currentPhotoPath
             )
@@ -281,6 +288,8 @@ class ReviewDetailActivity : AppCompatActivity() {
         detailBinding.tvPName.text = model.placeName
         detailBinding.tvPAddress.text = model.address
         detailBinding.etReview.setText(model.reviewText ?: "")
+        detailBinding.tvPhoneNumber.text =
+            model.phone ?: "전화번호 정보 없음"
 
         model.imagePath?.let {
             Glide.with(this).load(File(it)).into(detailBinding.imageView)

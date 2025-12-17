@@ -7,6 +7,7 @@ data class DetailUiModel(
     val y: String,
     val placeName: String,
     val address: String,
+    val phone: String?,
     val reviewText: String?,
     val imagePath: String?
 ): Serializable
